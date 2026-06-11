@@ -11,8 +11,13 @@
  */
 
 import { parseArgs } from 'node:util';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { runBenchmark } from 'nexus-agents';
 import { ATBenchAdapter } from './adapter.js';
+
+const require = createRequire(import.meta.url);
+const packageJson = require('../package.json') as { version: string };
 
 const HELP = `nexus-eval-atbench — Atbench (agent-trajectory safety) evaluation harness
 
@@ -32,14 +37,14 @@ Options:
   --version, -v            Show version.
 `;
 
-async function main(argv: readonly string[]): Promise<number> {
+export async function main(argv: readonly string[]): Promise<number> {
   const args = argv.slice(2);
   if (args.includes('--help') || args.includes('-h')) {
     process.stdout.write(HELP);
     return 0;
   }
   if (args.includes('--version') || args.includes('-v')) {
-    process.stdout.write('nexus-eval-atbench 0.1.0\n');
+    process.stdout.write(`nexus-eval-atbench ${packageJson.version}\n`);
     return 0;
   }
 
@@ -96,12 +101,17 @@ async function main(argv: readonly string[]): Promise<number> {
   return summary.passed === summary.total ? 0 : 1;
 }
 
-main(process.argv)
-  .then((code) => {
+export async function runCli(argv: readonly string[]): Promise<void> {
+  try {
+    const code = await main(argv);
     process.exit(code);
-  })
-  .catch((err: unknown) => {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     process.stderr.write(`Fatal: ${msg}\n`);
     process.exit(2);
-  });
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  void runCli(process.argv);
+}
